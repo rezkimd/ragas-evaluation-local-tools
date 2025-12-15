@@ -20,12 +20,12 @@ from typing import List
 from ragas.metrics.collections import (
     faithfulness,
     answer_relevancy,
+    answer_accuracy,
     context_recall,
     context_precision,
     context_entity_recall,
-    answer_similarity,
     answer_correctness,
-    # noise_sensitivity,
+    noise_sensitivity,
 )
 
 
@@ -59,9 +59,9 @@ RAGAS_METRICS = RagasMetricsConfig(
         context_recall,
         context_entity_recall,
         answer_relevancy,
-        answer_similarity,
+        answer_accuracy,
         answer_correctness,
-        # noise_sensitivity,
+        noise_sensitivity,
         faithfulness,
     ]
 )
