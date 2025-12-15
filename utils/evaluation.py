@@ -16,15 +16,29 @@ Tanggung jawab:
 """
 
 import os
-from typing import Any
+from typing import List, Dict, Any
 
 from ragas import evaluate
-from ragas.llms import LangchainLLMWrapper
-from langchain.llms import HuggingFacePipeline
 
 from config.model_config import EVALUATOR_MODEL
 from config.ragas_config import RAGAS_RUNTIME
 from utils.metrics import load_ragas_metrics
+from ragas.llms import LangchainLLMWrapper
+from langchain_huggingface import HuggingFacePipeline
+
+
+import logging
+
+
+from ragas.llms import llm_factory
+from ragas.metrics.collections.context_precision.metric import (
+    ContextPrecision,
+)
+
+logger = logging.getLogger(__name__)
+
+
+logger = logging.getLogger(__name__)
 
 
 def setup_langsmith_tracing(enable: bool, experiment_name: str):
@@ -125,3 +139,60 @@ def run_ragas_evaluation(
     )
 
     return result
+
+
+async def evaluate_rag_sample(
+    *,
+    llm_name: str,
+    llm_client,
+    question: str,
+    reference_answer: str,
+    retrieved_contexts: List[str],
+) -> Dict[str, Any]:
+    """
+    Evaluate a single RAG sample using Context Precision (with reference).
+
+    Parameters
+    ----------
+    llm_name : str
+        Model name for ragas llm_factory (e.g. "gpt-4o-mini")
+    llm_client :
+        OpenAI / AsyncOpenAI client
+    question : str
+        User question
+    reference_answer : str
+        Ground-truth / gold answer
+    retrieved_contexts : List[str]
+        Contexts retrieved by the RAG system
+
+    Returns
+    -------
+    dict
+        {
+            "metric": "context_precision",
+            "score": float
+        }
+    """
+
+    if not retrieved_contexts:
+        raise ValueError("retrieved_contexts cannot be empty")
+
+    # Create Ragas LLM
+    llm = llm_factory(llm_name, client=llm_client)
+
+    # Create metric (wrapper from ragas)
+    metric = ContextPrecision(llm=llm)
+
+    logger.info("Running Context Precision evaluation...")
+
+    # Run evaluation
+    result = await metric.ascore(
+        user_input=question,
+        reference=reference_answer,
+        retrieved_contexts=retrieved_contexts,
+    )
+
+    return {
+        "metric": metric.name,
+        "score": result.value,
+    }
